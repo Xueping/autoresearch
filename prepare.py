@@ -161,7 +161,7 @@ def train_tokenizer():
     print("Tokenizer: training BPE tokenizer...")
     t0 = time.time()
 
-    tokenizer = rustbpe.Tokenizer()
+    tokenizer = rustbpe.Tokenizer() # type: ignore
     vocab_size_no_special = VOCAB_SIZE - len(SPECIAL_TOKENS)
     tokenizer.train_from_iterator(text_iterator(), vocab_size_no_special, pattern=SPLIT_PATTERN)
 
@@ -234,12 +234,12 @@ class Tokenizer:
         if isinstance(text, str):
             ids = self.enc.encode_ordinary(text)
             if prepend is not None:
-                ids.insert(0, prepend_id)
+                ids.insert(0, prepend_id) # type: ignore
         elif isinstance(text, list):
             ids = self.enc.encode_ordinary_batch(text, num_threads=num_threads)
             if prepend is not None:
                 for row in ids:
-                    row.insert(0, prepend_id)
+                    row.insert(0, prepend_id) # pyright: ignore[reportPossiblyUnboundVariable]
         else:
             raise ValueError(f"Invalid input type: {type(text)}")
         return ids

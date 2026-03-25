@@ -182,7 +182,7 @@ class CausalSelfAttention(nn.Module):
         # Value residual (ResFormer): mix in value embedding with input-dependent gate per head
         if ve is not None:
             ve = ve.view(B, T, self.n_kv_head, self.head_dim)
-            gate = 2 * torch.sigmoid(self.ve_gate(x[..., :self.ve_gate_channels]))
+            gate = 2 * torch.sigmoid(self.ve_gate(x[..., :self.ve_gate_channels]))  # type: ignore[misc]
             v = v + gate.unsqueeze(-1) * ve
 
         cos, sin = cos_sin
@@ -405,7 +405,7 @@ polar_express_coeffs = [
 
 _use_torch_compile = device.type == "cuda" and torch.cuda.get_device_capability(device) >= (7, 0)
 if not _use_torch_compile:
-    torch._dynamo.config.disable = True
+    torch._dynamo.config.disable = True  # type: ignore[attr-defined]
 _maybe_compile = torch.compile(dynamic=False, fullgraph=True) if _use_torch_compile else lambda fn: fn
 
 @_maybe_compile
@@ -538,7 +538,7 @@ class MuonAdamW(torch.optim.Optimizer):
         torch._foreach_copy_(params, list(stacked_params.unbind(0)))
 
     @torch.no_grad()
-    def step(self):
+    def step(self, closure=None):  # type: ignore[override]
         for group in self.param_groups:
             if group['kind'] == 'adamw':
                 self._step_adamw(group)
@@ -628,9 +628,9 @@ def make_dataloader(tokenizer, B, T, split, buffer_size=1000):
                     pos += remaining
 
         if device.type == "cuda":
-            host_inputs.copy_(row_buffer[:, :-1])
-            host_targets.copy_(row_buffer[:, 1:])
-            device_buffer.copy_(host_buffer, non_blocking=True)
+            host_inputs.copy_(row_buffer[:, :-1])  # type: ignore[possibly-undefined]
+            host_targets.copy_(row_buffer[:, 1:])  # type: ignore[possibly-undefined]
+            device_buffer.copy_(host_buffer, non_blocking=True)  # type: ignore[possibly-undefined]
         else:
             inputs.copy_(row_buffer[:, :-1])
             targets.copy_(row_buffer[:, 1:])
@@ -639,7 +639,7 @@ def make_dataloader(tokenizer, B, T, split, buffer_size=1000):
 
 @torch.no_grad()
 def evaluate_bpb(model, tokenizer, batch_size):
-    token_bytes = prepare_mod.get_token_bytes(device=device)
+    token_bytes = prepare_mod.get_token_bytes(device=device)  # type: ignore[arg-type]
     val_loader = make_dataloader(tokenizer, batch_size, MAX_SEQ_LEN, "val")
     steps = prepare_mod.EVAL_TOKENS // (batch_size * MAX_SEQ_LEN)
     total_nats = 0.0
@@ -666,7 +666,7 @@ if device.type == "cuda":
 torch.set_float32_matmul_precision("high")
 if device.type == "cuda":
     _mp_dtype = torch.bfloat16 if torch.cuda.get_device_capability(device) >= (8, 0) else torch.float16
-    autocast_ctx = torch.amp.autocast(device_type="cuda", dtype=_mp_dtype)
+    autocast_ctx = torch.amp.autocast(device_type="cuda", dtype=_mp_dtype)  # type: ignore[attr-defined]
 else:
     _mp_dtype = torch.float32
     autocast_ctx = nullcontext()
@@ -754,7 +754,7 @@ smooth_train_loss = 0
 total_training_time = 0
 step = 0
 use_grad_scaler = device.type == "cuda" and _mp_dtype == torch.float16
-grad_scaler = torch.amp.GradScaler() if use_grad_scaler else None
+grad_scaler = torch.amp.GradScaler() if use_grad_scaler else None  # type: ignore[attr-defined]
 
 while True:
     if device.type == "cuda":
@@ -787,9 +787,9 @@ while True:
         grad_scaler.update()
     else:
         optimizer.step()
-    model.zero_grad(set_to_none=True)
+    model.zero_grad(set_to_none=True)  # type: ignore[union-attr]
 
-    train_loss_f = train_loss.item()
+    train_loss_f = train_loss.item()  # type: ignore[possibly-undefined]
 
     # Fast fail: abort if loss is exploding or NaN
     if math.isnan(train_loss_f) or train_loss_f > 100:
@@ -834,7 +834,7 @@ print()  # newline after \r training log
 total_tokens = step * TOTAL_BATCH_SIZE
 
 # Final eval
-model.eval()
+model.eval()  # type: ignore[union-attr]
 with autocast_ctx:
     val_bpb = evaluate_bpb(model, tokenizer, DEVICE_BATCH_SIZE)
 
